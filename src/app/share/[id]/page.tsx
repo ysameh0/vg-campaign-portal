@@ -13,16 +13,7 @@ export default async function SharePage({ params, searchParams }: Props) {
   const token = cookieStore.get(shareCookieName(id))?.value;
 
   if (!verifyShareSession(id, token)) {
-    return (
-      <div>
-        <pre style={{ fontSize: 10, background: "#eee", padding: 8, whiteSpace: "pre-wrap" }}>
-          {"DEBUG expected cookie name: " + shareCookieName(id) + "\n"}
-          {"DEBUG token found: " + JSON.stringify(token) + "\n"}
-          {"DEBUG all cookie names: " + JSON.stringify(cookieStore.getAll().map((c) => c.name)) + "\n"}
-        </pre>
-        <PasswordForm shareId={id} error={Boolean(errorParam)} />
-      </div>
-    );
+    return <PasswordForm shareId={id} error={Boolean(errorParam)} />;
   }
 
   const supabase = await createServerSupabaseClient();

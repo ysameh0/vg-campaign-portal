@@ -16,26 +16,16 @@ export function signShareSession(shareId: string): string {
 }
 
 export function verifyShareSession(shareId: string, token: string | undefined): boolean {
-  if (!token) {
-    console.error("[share-debug] no token cookie present for", shareId);
-    return false;
-  }
+  if (!token) return false;
   const [expiresRaw, mac] = token.split(".");
   const expires = Number(expiresRaw);
-  if (!expires || !mac || Date.now() > expires) {
-    console.error("[share-debug] bad token shape or expired", { token, expiresRaw, expires, mac, now: Date.now() });
-    return false;
-  }
+  if (!expires || !mac || Date.now() > expires) return false;
 
   const payload = `${shareId}.${expires}`;
   const expectedMac = createHmac("sha256", env.shareSessionSecret()).update(payload).digest("hex");
   const macBuf = Buffer.from(mac);
   const expectedBuf = Buffer.from(expectedMac);
-  const result = macBuf.length === expectedBuf.length && timingSafeEqual(macBuf, expectedBuf);
-  if (!result) {
-    console.error("[share-debug] mac mismatch", { mac, expectedMac, secretLen: env.shareSessionSecret().length });
-  }
-  return result;
+  return macBuf.length === expectedBuf.length && timingSafeEqual(macBuf, expectedBuf);
 }
 
 export function shareCookieName(shareId: string): string {
