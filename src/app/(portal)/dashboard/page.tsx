@@ -7,14 +7,19 @@ import { Badge } from "@/components/ui/badge";
 export default async function DashboardPage() {
   const supabase = await createServerSupabaseClient();
 
-  const [{ data: totals }, { data: signups }, { data: campaigns }] = await Promise.all([
-    supabase.rpc("rpc_dashboard_totals").single() as unknown as Promise<{
-      data: { total_customers: number; contactable_customers: number } | null;
+  const [{ data: totalsRows, error: totalsError }, { data: signups }, { data: campaigns }] = await Promise.all([
+    supabase.rpc("rpc_dashboard_totals") as unknown as Promise<{
+      data: { total_customers: number; contactable_customers: number }[] | null;
+      error: { message: string } | null;
     }>,
     supabase.rpc("rpc_signups_per_day", { p_days: 30 }),
     supabase.rpc("rpc_campaign_performance"),
   ]);
 
+  if (totalsError) {
+    console.error("rpc_dashboard_totals failed:", totalsError.message);
+  }
+  const totals = totalsRows?.[0];
   const totalCustomers = totals?.total_customers ?? 0;
   const contactableCustomers = totals?.contactable_customers ?? 0;
   const contactablePct = totalCustomers > 0 ? Math.round((contactableCustomers / totalCustomers) * 100) : 0;
