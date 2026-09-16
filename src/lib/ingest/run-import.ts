@@ -255,6 +255,12 @@ export async function runCampaignsImport(
         batch.map(({ parent_external_id: _parent_external_id, ...row }) => ({
           ...row,
           brand_id: brandId,
+          // Seeded historical campaigns already happened (they carry
+          // sent_at and reported_* numbers) — status must reflect that, not
+          // default to 'draft', or the Send panel would offer to dispatch a
+          // brand new live send against what's meant to be a read-only
+          // historical record.
+          status: "sent",
         })),
         { onConflict: "brand_id,external_id" },
       );
