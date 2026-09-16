@@ -4,15 +4,16 @@ import { verifyShareSession, shareCookieName } from "@/lib/share/session";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PasswordForm } from "./password-form";
 
-type Props = { params: Promise<{ id: string }> };
+type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string }> };
 
-export default async function SharePage({ params }: Props) {
+export default async function SharePage({ params, searchParams }: Props) {
   const { id } = await params;
+  const { error: errorParam } = await searchParams;
   const cookieStore = await cookies();
   const token = cookieStore.get(shareCookieName(id))?.value;
 
   if (!verifyShareSession(id, token)) {
-    return <PasswordForm shareId={id} />;
+    return <PasswordForm shareId={id} error={Boolean(errorParam)} />;
   }
 
   const supabase = await createServerSupabaseClient();
