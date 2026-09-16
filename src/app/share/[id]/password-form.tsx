@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,14 +12,20 @@ export function PasswordForm({ shareId }: { shareId: string }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const router = useRouter();
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     startTransition(async () => {
       const res = await verifySharePassword(shareId, password);
       if (res.ok) {
-        router.refresh();
+        // A plain hard reload rather than router.refresh(): the latter
+        // re-renders the current route against an already-mounted
+        // <PasswordForm>, which intermittently threw a hydration error and
+        // left the form on screen even though the cookie had already been
+        // set successfully server-side (confirmed via
+        // campaign_share_attempts). A full navigation sidesteps RSC
+        // reconciliation of the old form tree entirely.
+        window.location.reload();
       } else {
         setError("Incorrect password.");
       }

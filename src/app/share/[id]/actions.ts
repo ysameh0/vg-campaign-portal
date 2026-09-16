@@ -1,7 +1,6 @@
 "use server";
 
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { signShareSession, shareCookieName } from "@/lib/share/session";
@@ -29,10 +28,5 @@ export async function verifySharePassword(shareId: string, password: string): Pr
     maxAge: 2 * 60 * 60,
   });
 
-  // A hard server-side redirect rather than returning ok:true for the
-  // client to router.refresh(): the latter re-renders the current route
-  // against an already-mounted <PasswordForm>, which was intermittently
-  // throwing a hydration error and leaving the form on screen even though
-  // the cookie had already been set successfully.
-  redirect(`/share/${shareId}`);
+  return { ok: true };
 }
