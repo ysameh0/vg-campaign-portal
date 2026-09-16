@@ -50,3 +50,6 @@ next-env.d.ts
 supabase/.temp/
 
 .vercel
+
+# contains real credentials — never commit
+submission-email-draft.md
