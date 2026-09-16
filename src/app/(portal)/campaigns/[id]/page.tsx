@@ -44,13 +44,10 @@ export default async function CampaignDetailPage({ params }: Props) {
 
   let recipientStats: { status: string; count: number }[] = [];
   if (send) {
-    const { data } = await supabase
-      .from("campaign_send_recipients")
-      .select("status")
-      .eq("campaign_send_id", send.id);
-    const counts = new Map<string, number>();
-    for (const row of data ?? []) counts.set(row.status, (counts.get(row.status) ?? 0) + 1);
-    recipientStats = Array.from(counts.entries()).map(([status, count]) => ({ status, count }));
+    const { data } = await supabase.rpc("rpc_campaign_send_recipient_counts", {
+      p_campaign_send_id: send.id,
+    });
+    recipientStats = (data ?? []) as { status: string; count: number }[];
   }
 
   return (
