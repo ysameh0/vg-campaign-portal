@@ -292,11 +292,6 @@ language sql stable security definer set search_path = public as $$
   select brand_id from profiles where id = auth.uid()
 $$;
 
-create function current_role() returns text
-language sql stable security definer set search_path = public as $$
-  select role from profiles where id = auth.uid()
-$$;
-
 create policy profiles_self_select on profiles
   for select using (id = auth.uid());
 

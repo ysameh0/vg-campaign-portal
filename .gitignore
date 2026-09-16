@@ -45,3 +45,6 @@ next-env.d.ts
 # not duplicated into the repo. sha256 is checked at fetch time.
 /data/
 
+
+# supabase CLI local cache
+supabase/.temp/

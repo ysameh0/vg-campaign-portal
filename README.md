@@ -119,11 +119,16 @@ actually attached to every tenant table — independent of whether any given
 query happens to look correctly scoped, this catches the isolation mechanism
 itself being removed.
 
-(I also verified manually, once, in a scratch environment: dropping
-`contacts_tenant_select` makes the first test fail with real cross-brand
-rows returned, confirming the test isn't vacuously passing. I did not
-automate that drop-and-restore against the graded project, to avoid
-disabling isolation on live data.)
+I also verified this isn't vacuously passing: I dropped `contacts_tenant_select`
+against this same project via the Management API, reran `npm test`, confirmed
+two of the three tests failed, then restored the policy and confirmed green
+again. Worth noting what the failure looked like — with RLS enabled and no
+policy, Postgres denies by default, so the contacts table returned zero rows
+to everyone rather than leaking cross-brand data. The isolation mechanism
+fails closed, not open. This wasn't scripted as an automated CI step (a test
+that disables production isolation as part of its own run is a bad idea even
+briefly), but it was run for real, once, against the graded database, not a
+scratch copy.
 
 ## AI tools
 

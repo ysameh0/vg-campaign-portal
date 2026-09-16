@@ -1,4 +1,3 @@
-import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { parseContactsCsv } from "./parse-contacts";
 import { parseCampaignsCsv } from "./parse-campaigns";
@@ -12,6 +11,36 @@ function chunk<T>(items: T[], size: number): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
   return out;
+}
+
+// Kilele's own contacts export has ~2,800 rows sharing an external_id with
+// another row in the same file (not a re-import — duplicated within one
+// file). A single upsert() can't target the same conflict key twice in one
+// statement ("ON CONFLICT DO UPDATE command cannot affect row a second
+// time"), so duplicates must be collapsed before they ever reach the
+// upsert — last occurrence in the file wins, and every earlier occurrence
+// it superseded is logged as a warning, not silently dropped.
+function dedupeByExternalId<T extends { external_id: string }>(
+  rows: T[],
+  issues: RowIssue[],
+): T[] {
+  const lastIndexByExternalId = new Map<string, number>();
+  rows.forEach((row, index) => lastIndexByExternalId.set(row.external_id, index));
+
+  const deduped: T[] = [];
+  rows.forEach((row, index) => {
+    if (lastIndexByExternalId.get(row.external_id) !== index) {
+      issues.push({
+        rowNumber: index + 2,
+        severity: "warning",
+        reason: `duplicate external_id "${row.external_id}" in this file — an earlier row was superseded by a later one`,
+        rawRow: row as unknown as Record<string, string>,
+      });
+      return;
+    }
+    deduped.push(row);
+  });
+  return deduped;
 }
 
 // PostgREST caps a single response at 1000 rows by default — this paginates
@@ -110,7 +139,9 @@ export async function runContactsImport(
   const importId = await startImport(supabase, brandId, "contacts", fileName, initiatedBy);
 
   try {
-    const { rows, issues } = parseContactsCsv(text);
+    const parsed = parseContactsCsv(text);
+    const issues = parsed.issues;
+    const rows = dedupeByExternalId(parsed.rows, issues);
     const existing = await fetchAll<{ external_id: string; content_hash: string | null }>(
       supabase,
       "contacts",
@@ -151,7 +182,7 @@ export async function runContactsImport(
 
     const rejected = issues.filter((i) => i.severity === "error").length;
     await finishImport(supabase, importId, {
-      row_count: rows.length + rejected,
+      row_count: parsed.rows.length + rejected,
       inserted_count: inserted,
       updated_count: updated,
       unchanged_count: unchanged,
@@ -160,7 +191,7 @@ export async function runContactsImport(
 
     return {
       importId,
-      rowCount: rows.length + rejected,
+      rowCount: parsed.rows.length + rejected,
       insertedCount: inserted,
       updatedCount: updated,
       unchangedCount: unchanged,
@@ -190,7 +221,9 @@ export async function runCampaignsImport(
   const importId = await startImport(supabase, brandId, "campaigns", fileName, initiatedBy);
 
   try {
-    const { rows, issues } = parseCampaignsCsv(text);
+    const parsed = parseCampaignsCsv(text);
+    const issues = parsed.issues;
+    const rows = dedupeByExternalId(parsed.rows, issues);
     const existing = await fetchAll<{ external_id: string; content_hash: string | null }>(
       supabase,
       "campaigns",
@@ -253,7 +286,7 @@ export async function runCampaignsImport(
 
     const rejected = issues.filter((i) => i.severity === "error").length;
     await finishImport(supabase, importId, {
-      row_count: rows.length + rejected,
+      row_count: parsed.rows.length + rejected,
       inserted_count: inserted,
       updated_count: updated,
       unchanged_count: unchanged,
@@ -262,7 +295,7 @@ export async function runCampaignsImport(
 
     return {
       importId,
-      rowCount: rows.length + rejected,
+      rowCount: parsed.rows.length + rejected,
       insertedCount: inserted,
       updatedCount: updated,
       unchangedCount: unchanged,
