@@ -1,4 +1,10 @@
 import { notFound } from "next/navigation";
+
+// A send's recipient-bookkeeping insert is O(audience size) — Kilele-scale
+// campaigns (tens of thousands of contactable recipients) need more than
+// the platform's default function timeout to write every
+// campaign_send_recipients row in the same request as the dispatch call.
+export const maxDuration = 60;
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth/require-profile";
 import { computeAudience, AUDIENCE_RULE_DESCRIPTION } from "@/lib/campaigns/audience";

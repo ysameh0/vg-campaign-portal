@@ -107,10 +107,20 @@ export async function sendCampaign(
         provider_recipient_key: c.id,
         status: "sent" as const,
       }));
-      for (let i = 0; i < recipientRows.length; i += 500) {
-        await supabase.from("campaign_send_recipients").upsert(recipientRows.slice(i, i + 500), {
-          onConflict: "campaign_send_id,contact_id",
-        });
+      // Parallel, larger chunks — a Kilele-scale send (tens of thousands of
+      // recipients) writing this sequentially in small batches doesn't
+      // finish inside a serverless function's time budget. The dispatch to
+      // the provider already succeeded by this point regardless of how this
+      // bookkeeping insert goes, so failures here are logged, not thrown.
+      const chunks: (typeof recipientRows)[] = [];
+      for (let i = 0; i < recipientRows.length; i += 2000) chunks.push(recipientRows.slice(i, i + 2000));
+      const results = await Promise.all(
+        chunks.map((rows) =>
+          supabase.from("campaign_send_recipients").upsert(rows, { onConflict: "campaign_send_id,contact_id" }),
+        ),
+      );
+      for (const { error: chunkError } of results) {
+        if (chunkError) console.error("campaign_send_recipients upsert chunk failed:", chunkError.message);
       }
     }
 
